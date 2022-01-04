@@ -1,20 +1,17 @@
 from ctypes import sizeof
-import socket
-import threading
+import socket, threading
 
-""" Feature: transfer protocol design (length, content, end_signal) """
-""" Feature: send object using pickle lib (eg: json...) """
-""" Feature: large file transfer """
-""" Feature: file management """
-""" Feature: online chat room """
-""" Feature: global message pool (list of msg to be sent from i to j) """
-""" Feature: cross platform (PC, mobile...) online chat room """
-""" Feature: website based file management sys (like google storage) """
-""" Feature: Oracle """
+"""should add unit test for functionality testing"""
+"""natural language processing toolkit, import nltk"""
+"""mutex"""
 
 """
-natural language processing toolkit
-import nltk
+mutex = threading.Lock()
+mutex.acquire()
+try:
+    print('Do some stuff')
+finally:
+    mutex.release()
 """
 
 SIZE = 4
@@ -25,7 +22,19 @@ SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 
-def handle_client(conn, addr):
+server_status = True
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(ADDR)
+server.listen()
+print(f"[STATUS] server listening on {SERVER}")
+
+def send(msg, conn):
+    buflen = str(len(msg))
+    buflen = b'0' * (SIZE-len(buflen)) + buflen.encode(FORMAT)
+    conn.send(buflen)
+    conn.send(msg.encode(FORMAT))
+
+def client_handler(conn, addr):
     print(f"{addr} connected.")
 
     while True:
@@ -44,18 +53,11 @@ def handle_client(conn, addr):
 
         msg = conn.recv(buflen).decode(FORMAT)
         print(f"[{addr}] {msg}")
-
-        # conn.send("shut the fuck up".encode(FORMAT))
+        send(msg, conn)
     conn.close()
-
-server_status = True
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(ADDR)
-server.listen()
-print(f"[STATUS] server listening on {SERVER}")
 
 while server_status:
     conn, addr = server.accept()
-    thread = threading.Thread(target=handle_client, args=(conn, addr))
+    thread = threading.Thread(target=client_handler, args=(conn, addr))
     thread.start()
     print(f"[ACTIVE CONNECTION] {threading.activeCount() - 1}")
