@@ -45,7 +45,7 @@ def handle_client(conn, addr):
         msg = conn.recv(buflen).decode(FORMAT)
         print(f"[{addr}] {msg}")
 
-        # conn.send("msg received".encode(FORMAT))
+        # conn.send("shut the fuck up".encode(FORMAT))
     conn.close()
 
 server_status = True
