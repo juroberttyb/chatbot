@@ -11,27 +11,20 @@ SIZE = 4
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client.connect(ADDR)
 
-"""
 def send(msg):
-    message = msg.encode(FORMAT)
-    msg_length = len(message)
-    send_length = str(msg_length).encode(FORMAT)
-    print(len(send_length))
-    # pad space to expected header length
-    send_length +=  b' ' * (HEADER - len(send_length))
-    client.send(send_length)
-    client.send(message)
-    ret = client.recv(2048).decode(FORMAT)
-    print(ret)
-"""
+    if len(msg) == 0:
+        ret = input("Sure you want to exit? [y|n]:")
+        if ret == 'y':
+            client.send(b'0' * SIZE)
+            exit()
+        return
 
-def send(msg):
     buflen = str(len(msg))
     buflen = b'0' * (SIZE-len(buflen)) + buflen.encode(FORMAT)
     client.send(buflen)
     client.send(msg.encode(FORMAT))
 
+print("--- Welcome to Robert's Chatbot, you can now chat, or simply press enter to exit, thank you ---")
 while True:
-    msg = input("msg: ")
-    print(type(msg), msg)
+    msg = input("Me:")
     send(msg)
