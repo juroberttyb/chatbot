@@ -1,9 +1,25 @@
 from ctypes import sizeof
-import socket, threading
+import socket, threading, json
 
+"""[TODO]"""
+"""whether to add user name or not in log data"""
+"""python create and store json format"""
+"""
+server perspective
+    data format
+    {
+        name: str
+        time: 
+            start: list[int]
+            end:   list[int]
+        chat: list[str, str, list[int]] "name, msg, forward/rcv time"
+    }
+"""
+"""communication between server and database"""
+"""config file for server.py and config file for client.py to simplift code"""
 """should add unit test for functionality testing"""
 """natural language processing toolkit, import nltk"""
-"""mutex"""
+"""mutex at 1:model inference time 2:database communication time"""
 
 """
 mutex = threading.Lock()
@@ -37,6 +53,11 @@ def send(msg, conn):
 def client_handler(conn, addr):
     print(f"{addr} connected.")
 
+    ### ask for name
+    ### create data buffer
+    data = {}
+    name, start_time, chat = None, None, []
+
     while True:
         buflen = conn.recv(SIZE).decode(FORMAT)
         ### print(f"buffer of size {buflen} rcved")
@@ -55,6 +76,19 @@ def client_handler(conn, addr):
         print(f"[{addr}] {msg}")
         send(msg, conn)
     conn.close()
+
+    end_time = None
+
+    # json.loads() -> load json file
+    # json.dumps() -> convert into json
+    """
+    with open('person.txt', 'w') as json_file:
+        json.dump(person_dict, json_file)
+    """
+    data = json.dumps(data)
+
+    ### store json format
+    ### store to database
 
 while server_status:
     conn, addr = server.accept()
