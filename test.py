@@ -1,6 +1,5 @@
+import time
 
-a = b'01' # .decode('utf-8')
+print(time.time())
 
-print(type(a), a)
-print(type(a), str(a))
-print(type(a), int(a))
+print(time.time())
