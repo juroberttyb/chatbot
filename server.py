@@ -30,21 +30,23 @@ def handle_client(conn, addr):
 
     while True:
         buflen = conn.recv(SIZE).decode(FORMAT)
-
+        ### print(f"buffer of size {buflen} rcved")
+        
         try:
             buflen = int(buflen)
         except:
-            conn.close()
+            print(f"buflen not of type int, {addr} closed")
             break
         
-        if buflen > 8192 or buflen is 0:
-            conn.close()
+        if buflen > 8192 or buflen == 0:
+            print(f"buflen over 8192, {addr} closed")
             break
 
         msg = conn.recv(buflen).decode(FORMAT)
         print(f"[{addr}] {msg}")
 
         # conn.send("msg received".encode(FORMAT))
+    conn.close()
 
 server_status = True
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
