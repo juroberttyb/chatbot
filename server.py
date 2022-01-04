@@ -1,18 +1,16 @@
-from ctypes import sizeof
-import socket, threading, json
+# from ctypes import sizeof
+import socket, threading, json, time
 
 """[TODO]"""
+"""the first msg should be sent from server"""
 """whether to add user name or not in log data"""
 """python create and store json format"""
 """
 server perspective
     data format
     {
-        name: str
-        time: 
-            start: list[int]
-            end:   list[int]
-        chat: list[str, str, list[int]] "name, msg, forward/rcv time"
+        nth_chat: int
+        chat:     list[bool, str, float] "from client or not, msg, time"
     }
 """
 """communication between server and database"""
@@ -21,14 +19,8 @@ server perspective
 """natural language processing toolkit, import nltk"""
 """mutex at 1:model inference time 2:database communication time"""
 
-"""
-mutex = threading.Lock()
-mutex.acquire()
-try:
-    print('Do some stuff')
-finally:
-    mutex.release()
-"""
+"""this should be attained by requiring from database once start"""
+nth_chat = 0
 
 SIZE = 4
 PORT = 5050
@@ -37,6 +29,7 @@ PORT = 5050
 SERVER = socket.gethostbyname(socket.gethostname())
 ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
+mutex = threading.Lock()
 
 server_status = True
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,16 +41,32 @@ def send(msg, conn):
     buflen = str(len(msg))
     buflen = b'0' * (SIZE-len(buflen)) + buflen.encode(FORMAT)
     conn.send(buflen)
+
+    # msg = None
     conn.send(msg.encode(FORMAT))
+    return msg
 
 def client_handler(conn, addr):
+    """should be removed in future, this var need to be obtained from database"""
+    global nth_chat
+
     print(f"{addr} connected.")
 
     ### ask for name
     ### create data buffer
-    data = {}
-    name, start_time, chat = None, None, []
+    
+    mutex.acquire()
+    """aquire nth_chat var from database"""
+    _nth_chat = nth_chat
 
+    """should update this nth_chat to database"""
+    nth_chat += 1
+    mutex.release()
+
+    data = {"nth_chat":_nth_chat, "chat":[]}
+
+    """chat time record"""
+    start = time.time()
     while True:
         buflen = conn.recv(SIZE).decode(FORMAT)
         ### print(f"buffer of size {buflen} rcved")
@@ -72,23 +81,26 @@ def client_handler(conn, addr):
             print(f"buflen over 8192, {addr} closed")
             break
 
-        msg = conn.recv(buflen).decode(FORMAT)
-        print(f"[{addr}] {msg}")
-        send(msg, conn)
+        rcv_msg = conn.recv(buflen).decode(FORMAT)
+        data["chat"].append([True, rcv_msg, time.time()-start])
+        print(f"[{addr}] {rcv_msg}")
+
+        ret_msg = send(rcv_msg, conn)
+        data["chat"].append([False, ret_msg, time.time()-start])
     conn.close()
+
+    print(data)
 
     end_time = None
 
     # json.loads() -> load json file
     # json.dumps() -> convert into json
-    """
-    with open('person.txt', 'w') as json_file:
-        json.dump(person_dict, json_file)
-    """
+    # with open('person.txt', 'w') as json_file:
+    #     json.dump(person_dict, json_file)
+    
     data = json.dumps(data)
 
-    ### store json format
-    ### store to database
+    """upload data to database"""
 
 while server_status:
     conn, addr = server.accept()
