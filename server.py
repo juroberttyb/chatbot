@@ -2,15 +2,17 @@
 import socket, threading, json, time
 
 """[TODO]"""
-"""the first msg should be sent from server"""
-"""whether to add user name or not in log data"""
-"""python create and store json format"""
 """
 server perspective
     data format
     {
         nth_chat: int
-        chat:     list[bool, str, float] "from client or not, msg, time"
+        chat: 
+        {
+            is_client: bool array
+            msg: str array
+            msg_time: float array
+        }
     }
 """
 """communication between server and database"""
@@ -63,7 +65,7 @@ def client_handler(conn, addr):
     nth_chat += 1
     mutex.release()
 
-    data = {"nth_chat":_nth_chat, "chat":[]}
+    data = {"nth_chat":_nth_chat, "chat":{"is_client":[], "msg":[], "msg_time":[]}}
 
     """chat time record"""
     start = time.time()
@@ -82,14 +84,16 @@ def client_handler(conn, addr):
             break
 
         rcv_msg = conn.recv(buflen).decode(FORMAT)
-        data["chat"].append([True, rcv_msg, time.time()-start])
+        data["chat"]["is_client"].append(True)
+        data["chat"]["msg"].append(rcv_msg)
+        data["chat"]["msg_time"].append(time.time()-start)
         print(f"[{addr}] {rcv_msg}")
 
         ret_msg = send(rcv_msg, conn)
-        data["chat"].append([False, ret_msg, time.time()-start])
+        data["chat"]["is_client"].append(False)
+        data["chat"]["msg"].append(ret_msg)
+        data["chat"]["msg_time"].append(time.time()-start)
     conn.close()
-
-    print(data)
 
     end_time = None
 
@@ -99,6 +103,7 @@ def client_handler(conn, addr):
     #     json.dump(person_dict, json_file)
     
     data = json.dumps(data)
+    print(data)
 
     """upload data to database"""
 
