@@ -1,5 +1,10 @@
 # from ctypes import sizeof
-import socket, threading, json, time
+import socket, threading, json, time, argparse, numpy as np
+
+parser = argparse.ArgumentParser(description='mode setting')
+parser.add_argument('--reset_db', default=False, help='whether to reset database')
+parser.add_argument('--cfg_path', default=None, help='path to server configuration file')
+args = parser.parse_args()
 
 """[TODO]"""
 """
@@ -15,15 +20,14 @@ server perspective
         }
     }
 """
-"""communication between server and database"""
+"""chatbot model"""
+"""chatbot model aquire data from db and train"""
 """config file for server.py and config file for client.py to simplift code"""
 """should add unit test for functionality testing"""
 """natural language processing toolkit, import nltk"""
 """mutex at 1:model inference time 2:database communication time"""
 
-"""this should be attained by requiring from database once start"""
-nth_chat = 0
-
+"""server configuration to mongodb"""
 SIZE = 4
 PORT = 5050
 
@@ -49,23 +53,26 @@ def send(msg, conn):
     return msg
 
 def client_handler(conn, addr):
-    """should be removed in future, this var need to be obtained from database"""
-    global nth_chat
-
     print(f"{addr} connected.")
 
     ### ask for name
     ### create data buffer
     
     mutex.acquire()
-    """aquire nth_chat var from database"""
-    _nth_chat = nth_chat
-
-    """should update this nth_chat to database"""
-    nth_chat += 1
+    """aquire nth from database"""
+    nth = msg_v1.find_one({"_id": "nth"})["nth"]
+    """update nth to database"""
+    msg_v1.update_one({"_id": "nth"}, {"$inc": {"nth": 1}})
     mutex.release()
 
-    data = {"nth_chat":_nth_chat, "chat":{"is_client":[], "msg":[], "msg_time":[]}}
+    data = {
+        "nth_chat": nth, 
+        "chat": {
+            "is_client": [],
+            "msg": [],
+            "msg_time": []
+            }
+        }
 
     """chat time record"""
     start = time.time()
@@ -86,26 +93,49 @@ def client_handler(conn, addr):
         rcv_msg = conn.recv(buflen).decode(FORMAT)
         data["chat"]["is_client"].append(True)
         data["chat"]["msg"].append(rcv_msg)
-        data["chat"]["msg_time"].append(time.time()-start)
+        data["chat"]["msg_time"].append(np.float32(time.time()-start))
         print(f"[{addr}] {rcv_msg}")
 
         ret_msg = send(rcv_msg, conn)
         data["chat"]["is_client"].append(False)
         data["chat"]["msg"].append(ret_msg)
-        data["chat"]["msg_time"].append(time.time()-start)
+        data["chat"]["msg_time"].append(np.float32(time.time()-start))
     conn.close()
 
     end_time = None
 
     # json.loads() -> load json file
     # json.dumps() -> convert into json
+    # data = json.dumps(data)
     # with open('person.txt', 'w') as json_file:
     #     json.dump(person_dict, json_file)
-    
-    data = json.dumps(data)
-    print(data)
 
-    """upload data to database"""
+    try:
+        """upload data to database"""
+        msg_v1.insert_one(data)
+    except:
+        msg_v1.delete_one({"nth_chat": nth})
+
+import pymongo
+mongo_client = pymongo.MongoClient("mongodb+srv://juroberttyb:juhome35766970@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
+msg_v1 = mongo_client.messages.version1
+
+if args.reset_db:
+    msg_v1.delete_many({})
+    msg_v1.insert_one({"_id": "nth", "nth": 0})
+
+"""attain server config from mongodb here"""
+server_config = {
+    "buffer_byte_size": 4,
+    "server_port": 5050,
+    "server_ip": socket.gethostbyname(socket.gethostname()),
+    "message_format": 'utf-8',
+    "chat": {
+        "is_client": [],
+        "msg": [],
+        "msg_time": []
+        }
+    }
 
 while server_status:
     conn, addr = server.accept()
