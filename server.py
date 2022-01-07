@@ -1,15 +1,7 @@
-# from ctypes import sizeof
-import socket, threading, json, time, argparse, numpy as np
-
-parser = argparse.ArgumentParser(description='mode setting')
-parser.add_argument('--reset_db', default=True, help='whether to reset database')
-parser.add_argument('--cfg_path', default="default.cfg", help='path to server configuration file')
-args = parser.parse_args()
-
 """[TODO]"""
 """
 server perspective
-    data format
+    data cfg.get('msg_format')
     {
         nth_chat: int
         chat: 
@@ -30,31 +22,27 @@ server perspective
 """make this python project like, eg: add __init__.py"""
 """add redis key-value database to save model checkpoint"""
 
+import argparse
+parser = argparse.ArgumentParser(description='mode setting')
+parser.add_argument('--cfg_path', default="default.cfg", help='path to server configuration file')
+args = parser.parse_args()
+
 import configparser
-config = configparser.ConfigParser()
-config.read_file(open('default.cfg'))
-
-SIZE = config['DEFAULT'].getint('buflen') # 4
-PORT = config['DEFAULT'].getint('server_port') # 5050
-
-#SERVER = "192.168.0.100"
-SERVER = socket.gethostbyname(socket.gethostname())
-ADDR = (SERVER, PORT)
-FORMAT = 'utf-8'
-mutex = threading.Lock()
-
-server_status = config['DEFAULT'].getboolean('server_status')
+cfg = configparser.ConfigParser()
+cfg.read_file(open('default.cfg'))
+cfg = cfg['DEFAULT']
 
 def send(msg, conn):
     buflen = str(len(msg))
-    buflen = b'0' * (SIZE-len(buflen)) + buflen.encode(FORMAT)
+    buflen = b'0' * (cfg.getint('header_size')-len(buflen)) + buflen.encode(cfg.get('msg_format'))
     conn.send(buflen)
 
     # msg = None
-    conn.send(msg.encode(FORMAT))
+    conn.send(msg.encode(cfg.get('msg_format')))
     return msg
 
-def client_handler(conn, addr):
+import time, numpy as np
+def client_handler(conn, addr, mutex):
     print(f"{addr} connected.")
 
     ### ask for name
@@ -79,7 +67,7 @@ def client_handler(conn, addr):
     """chat time record"""
     start = time.time()
     while True:
-        buflen = conn.recv(SIZE).decode(FORMAT)
+        buflen = conn.recv(cfg.getint('header_size')).decode(cfg.get('msg_format'))
         ### print(f"buffer of size {buflen} rcved")
         
         try:
@@ -92,7 +80,7 @@ def client_handler(conn, addr):
             print(f"buflen over 8192, {addr} closed")
             break
 
-        rcv_msg = conn.recv(buflen).decode(FORMAT)
+        rcv_msg = conn.recv(buflen).decode(cfg.get('msg_format'))
         data["chat"]["is_client"].append(True)
         data["chat"]["msg"].append(rcv_msg)
         data["chat"]["msg_time"].append(np.float32(time.time()-start))
@@ -118,26 +106,31 @@ def client_handler(conn, addr):
     except:
         msg_v1.delete_one({"nth_chat": nth})
 
-import configparser
-config = configparser.ConfigParser()
-config.read_file(open('default.cfg'))
-
 import pymongo
 mongo_client = pymongo.MongoClient("mongodb+srv://juroberttyb:juhome35766970@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
 msg_v1 = mongo_client.messages.version1
 
-if args.reset_db:
+if cfg.getboolean("reset_db"):
     msg_v1.delete_many({})
     msg_v1.insert_one({"_id": "nth", "nth": 0})
     print("[DATABASE] reset successfully")
 
+import socket
+#SERVER = "192.168.0.100"
+SERVER_IP = socket.gethostbyname(socket.gethostname())
+ADDR = (SERVER_IP, cfg.getint('server_port'))
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind(ADDR)
 server.listen()
-print(f"[STATUS] server listening on {SERVER}")
+print(f"[STATUS] server listening on {SERVER_IP}")
 
-while server_status:
+import threading
+mutex = threading.Lock()
+
+while cfg.getboolean('server_status'):
     conn, addr = server.accept()
-    thread = threading.Thread(target=client_handler, args=(conn, addr))
+    thread = threading.Thread(target=client_handler, args=(conn, addr, mutex))
     thread.start()
     print(f"[ACTIVE CONNECTION] {threading.activeCount() - 1}")
+server.close()
