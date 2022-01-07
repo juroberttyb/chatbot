@@ -1,11 +1,12 @@
-import time
+import configparser
+config = configparser.ConfigParser()
+config.read_file(open('default.cfg'))
 
-tmp = time.time()
+tmp = config.sections()
+print(dict(config['DEFAULT'].items()))
 
-time.sleep(0.1)
-
-tmp = time.time() - tmp
-
-import numpy as np
-print(tmp)
-print(np.float32(tmp))
+"""
+for e in tmp:
+    print(e)
+    print(dict(config[e].items()))
+"""

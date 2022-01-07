@@ -2,8 +2,8 @@
 import socket, threading, json, time, argparse, numpy as np
 
 parser = argparse.ArgumentParser(description='mode setting')
-parser.add_argument('--reset_db', default=False, help='whether to reset database')
-parser.add_argument('--cfg_path', default=None, help='path to server configuration file')
+parser.add_argument('--reset_db', default=True, help='whether to reset database')
+parser.add_argument('--cfg_path', default="default.cfg", help='path to server configuration file')
 args = parser.parse_args()
 
 """[TODO]"""
@@ -26,10 +26,16 @@ server perspective
 """should add unit test for functionality testing"""
 """natural language processing toolkit, import nltk"""
 """mutex at 1:model inference time 2:database communication time"""
+"""add readme"""
+"""make this python project like, eg: add __init__.py"""
+"""add redis key-value database to save model checkpoint"""
 
-"""server configuration to mongodb"""
-SIZE = 4
-PORT = 5050
+import configparser
+config = configparser.ConfigParser()
+config.read_file(open('default.cfg'))
+
+SIZE = config['DEFAULT'].getint('buflen') # 4
+PORT = config['DEFAULT'].getint('server_port') # 5050
 
 #SERVER = "192.168.0.100"
 SERVER = socket.gethostbyname(socket.gethostname())
@@ -37,11 +43,7 @@ ADDR = (SERVER, PORT)
 FORMAT = 'utf-8'
 mutex = threading.Lock()
 
-server_status = True
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(ADDR)
-server.listen()
-print(f"[STATUS] server listening on {SERVER}")
+server_status = config['DEFAULT'].getboolean('server_status')
 
 def send(msg, conn):
     buflen = str(len(msg))
@@ -116,6 +118,10 @@ def client_handler(conn, addr):
     except:
         msg_v1.delete_one({"nth_chat": nth})
 
+import configparser
+config = configparser.ConfigParser()
+config.read_file(open('default.cfg'))
+
 import pymongo
 mongo_client = pymongo.MongoClient("mongodb+srv://juroberttyb:juhome35766970@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
 msg_v1 = mongo_client.messages.version1
@@ -123,19 +129,12 @@ msg_v1 = mongo_client.messages.version1
 if args.reset_db:
     msg_v1.delete_many({})
     msg_v1.insert_one({"_id": "nth", "nth": 0})
+    print("[DATABASE] reset successfully")
 
-"""attain server config from mongodb here"""
-server_config = {
-    "buffer_byte_size": 4,
-    "server_port": 5050,
-    "server_ip": socket.gethostbyname(socket.gethostname()),
-    "message_format": 'utf-8',
-    "chat": {
-        "is_client": [],
-        "msg": [],
-        "msg_time": []
-        }
-    }
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind(ADDR)
+server.listen()
+print(f"[STATUS] server listening on {SERVER}")
 
 while server_status:
     conn, addr = server.accept()
