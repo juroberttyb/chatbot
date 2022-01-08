@@ -1,26 +1,9 @@
 """[TODO]"""
-"""
-server perspective
-    data cfg.get('msg_format')
-    {
-        nth_chat: int
-        chat: 
-        {
-            is_client: bool array
-            msg: str array
-            msg_time: float array
-        }
-    }
-"""
-"""chatbot model"""
-"""chatbot model aquire data from db and train"""
-"""config file for server.py and config file for client.py to simplift code"""
-"""should add unit test for functionality testing"""
-"""natural language processing toolkit, import nltk"""
-"""mutex at 1:model inference time 2:database communication time"""
-"""add readme"""
-"""make this python project like, eg: add __init__.py"""
-"""add redis key-value database to save model checkpoint"""
+"""1: light weight text2text NLP model, import nltk natural language processing toolkit"""
+"""2: model checkpoint saved to redis database, which has max element size 512m > 16m in mongodb"""
+"""3: readme"""
+"""4: make this python project-like, OOP, structure..."""
+"""5: cmd prompt to control server behavior with another thread"""
 
 import argparse
 parser = argparse.ArgumentParser(description='mode setting')
