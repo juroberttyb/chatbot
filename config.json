@@ -1,0 +1,16 @@
+{
+    "reset_db": "True",
+    "header_size": 4,
+    "server_port": 5050,
+    "msg_format": "utf-8",
+    "server_status": "True",
+    "is_client_flag": "True",
+    "data": {
+        "nth_chat": -1, 
+        "chat": {
+            "is_client": [],
+            "msg": [],
+            "msg_time": []
+            }
+        }
+}
