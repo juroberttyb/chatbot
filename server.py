@@ -1,18 +1,14 @@
-"""[TODO]"""
-"""1: light weight text2text NLP model, import nltk natural language processing toolkit"""
-"""2: model checkpoint saved to redis database, which has max element size 512m > 16m in mongodb"""
-"""3: readme"""
-"""4: make this python project-like, OOP, structure..."""
-"""5: cmd prompt to control server behavior with another thread"""
-
 import argparse
 parser = argparse.ArgumentParser(description='mode setting')
 parser.add_argument('--config_path', default="config.json", help='path to server configuration file')
+parser.add_argument('--key_path', default="key.json", help='path to key file')
 args = parser.parse_args()
 
 import json
 with open(args.config_path) as config_file:
     cfg = json.load(config_file)
+with open(args.key_path) as key_file:
+    key = json.load(key_file)
 
 import threading
 db_mutex = threading.Lock()
@@ -92,7 +88,7 @@ def client_handler(conn, addr):
         msg_v1.delete_one({"nth_chat": nth})
 
 import pymongo
-mongo_client = pymongo.MongoClient("mongodb+srv://juroberttyb:juhome35766970@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
+mongo_client = pymongo.MongoClient(f"mongodb+srv://{key['mongodb']['username']}:{key['mongodb']['password']}@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
 msg_v1 = mongo_client.messages.version1
 
 if cfg['reset_db']:
