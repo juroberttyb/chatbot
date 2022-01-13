@@ -1,4 +1,4 @@
-# [TODO]
+### TODO
 * encoder decoder chatbot, record who speak to me, use this as input history nextime speak to me, therefore has memory.
 * need a simple login mechanism for user identification
 
