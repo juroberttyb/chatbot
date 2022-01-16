@@ -1,10 +1,8 @@
 ### TODO
-* encoder decoder chatbot, record who speak to me, use this as input history nextime speak to me, therefore has memory.
-* need a simple login mechanism for user identification
-
-* model checkpoint saved to redis database, which has max element size 512m > 16m in mongodb
-* RL based chatbot
-* readme
-* make this python project-like, OOP, structure...
+* use username to find input history nextime, therefore has memory.
+* save chat message to redis (512m), with its key and other info saved as document in mongodb
+* train a better chat model
 * add user property (name, talk time, predicited user type, ...) to mysql
+#### MORE
+* make this python project-like, OOP, structure...
 * cmd prompt to control server behavior with another thread
