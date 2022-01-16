@@ -52,6 +52,12 @@ def client_handler(conn, addr):
         if is_first_msg:
             data['username'], is_first_msg = rcv_msg, False
             send(f"Hi {rcv_msg}, we can now start chatting!", conn)
+
+            """attain msg history from redis"""
+            history = [[[data["chat"]["msg"][i]], True] if i==0 \
+                        else [[data["chat"]["msg"][i]], False] \
+                        for i in range(0, len(data["chat"]["msg"]), 2)
+                    ]
             continue
         else:
             data["chat"]["is_client"].append(bool(cfg['is_client_flag']))
@@ -59,19 +65,20 @@ def client_handler(conn, addr):
             data["chat"]["msg_time"].append(np.float32(time.time()-start))
             # print(f"[{addr}] {rcv_msg}")
 
-        model_mutex.acquire()
-        if is_first_msg:
-            chatter.Messager.data = [[(rcv_msg,), True]]
-            is_first_msg = False
+        if len(history) > 0:
+            history += [[[rcv_msg], False]]
         else:
-            chatter.Messager.data = [[(rcv_msg,), False]]
+            history = [[[rcv_msg], True]]
+
+        model_mutex.acquire()
+        chatter.Messager.data = history
         
         ret_msg = chatter.RobertDisplayModel.main(
                                             task='message',
                                             model_file='model/model',
-                                            num_examples=1,
+                                            num_examples=len(history),
                                             skip_generation=False,
-                                        )
+                                        )[-1] # -1 for latest return message
         model_mutex.release()
 
         send(ret_msg, conn)

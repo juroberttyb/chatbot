@@ -1,16 +1,16 @@
 def train_new_model():
     import os
-    os.system('rm -rf model')
-    os.system('mkdir -p model')
+    os.system('rm -rf new_model')
+    os.system('mkdir -p new_model')
 
     from parlai.scripts.train_model import TrainModel
     TrainModel.main(
         # we MUST provide a filename
-        model_file='model/model',
+        model_file='new_model/model',
         # train on empathetic dialogues
         task='empathetic_dialogues',
         # limit training time to 2 minutes, and a batchsize of 16
-        max_train_time=30,
+        max_train_time=120,
         batchsize=16,
         
         # we specify the model type as seq2seq
@@ -24,6 +24,9 @@ def train_new_model():
         # truncate text and labels at 64 tokens, for memory and time savings
         truncate=64,
     )
+
+    os.system('rm -rf model')
+    os.system("mv new_model model")
 
 from parlai.core.teachers import register_teacher, DialogTeacher
 @register_teacher("message")
@@ -41,13 +44,18 @@ class Messager(DialogTeacher):
 from parlai.scripts.display_model import RobertDisplayModel
 
 if __name__ == '__main__':
-    Messager.data = [[('Hello', 'Hi'), True]]
+    train_new_model()
+
+    """
+    Messager.data = [[['how'], True], [['yes'], False], [['no'], False], [['oh'], False], [['taler'], False]]
 
     ret = RobertDisplayModel.main(
         task='message',
         model_file='model/model',
         verbose=False,
-        num_examples=2,
+        num_examples=5,
         skip_generation=False,
     )
     print(ret)
+    print(len(ret))
+    """
