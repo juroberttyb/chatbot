@@ -12,17 +12,31 @@ with open(args.key_path) as key_file:
 
 import threading
 db_mutex = threading.Lock()
+parlai_mutex= threading.Lock()
 
 def send(msg, conn):
     buflen = str(len(msg))
     buflen = b'0' * (cfg['header_size']-len(buflen)) + buflen.encode(cfg['msg_format'])
     conn.send(buflen)
 
-    # msg = None
-    conn.send(msg.encode(cfg['msg_format']))
-    return msg
+    msg = msg.encode(cfg['msg_format'])
+    conn.send(msg)
+
+from parlai.core.teachers import register_teacher, DialogTeacher
+@register_teacher("message")
+class Messager(DialogTeacher):
+    data = None
+
+    def __init__(self, opt, shared=None):
+        opt['datafile'] = opt['datatype'].split(':')[0] + ".txt"
+        super().__init__(opt, shared)
+    
+    def setup_data(self):
+        for element in self.data:
+            yield element
 
 import time, numpy as np
+import chatter
 def client_handler(conn, addr):
     print(f"{addr} connected.")
 
@@ -46,7 +60,7 @@ def client_handler(conn, addr):
         }
 
     """chat time record"""
-    start = time.time()
+    start, first_msg_flag = time.time(), True
     while True:
         buflen = conn.recv(cfg['header_size']).decode(cfg['msg_format'])
         ### print(f"buffer of size {buflen} rcved")
@@ -67,7 +81,17 @@ def client_handler(conn, addr):
         data["chat"]["msg_time"].append(np.float32(time.time()-start))
         print(f"[{addr}] {rcv_msg}")
 
-        ret_msg = send(rcv_msg, conn)
+        parlai_mutex.acquire()
+        chatter.Messager.data = [[(rcv_msg, 'hi'), True]]
+        ret_msg = chatter.RobertDisplayModel.main(
+                                            task='message',
+                                            model_file='model/model',
+                                            num_examples=1,
+                                            skip_generation=False,
+                                        )
+        parlai_mutex.release()
+
+        send(ret_msg, conn)
         data["chat"]["is_client"].append(not bool(cfg['is_client_flag']))
         data["chat"]["msg"].append(ret_msg)
         data["chat"]["msg_time"].append(np.float32(time.time()-start))

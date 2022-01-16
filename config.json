@@ -6,7 +6,8 @@
     "server_status": "True",
     "is_client_flag": "True",
     "data": {
-        "nth_chat": -1, 
+        "nth_chat": -1,
+        "username": "Human", 
         "chat": {
             "is_client": [],
             "msg": [],
