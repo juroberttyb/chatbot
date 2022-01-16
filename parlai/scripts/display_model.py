@@ -117,13 +117,15 @@ class RobertDisplayModel(DisplayModel):
 
         # Show some example dialogs.
         turn = 0
+        ret = []
         with world:
             for _k in range(int(opt['num_examples'])):
                 world.parley()
                 if opt['verbose'] or opt.get('display_add_fields', ''):
                     print(world.display() + "\n~~")
                 else:
-                    ret = self.simple_display(opt, world, turn)
+                    msg = self.simple_display(opt, world, turn)
+                    ret.append(msg)
                 turn += 1
                 if world.get_acts()[0]['episode_done']:
                     turn = 0
