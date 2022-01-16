@@ -5,9 +5,9 @@
     "msg_format": "utf-8",
     "server_status": "True",
     "is_client_flag": "True",
-    "data": {
+    "document_format": {
         "nth_chat": -1,
-        "username": "Human", 
+        "username": "[DEFAULT]", 
         "chat": {
             "is_client": [],
             "msg": [],
