@@ -51,10 +51,16 @@ def client_handler(conn, addr):
 
         rcv_msg = conn.recv(buflen).decode(cfg['msg_format'])
         if is_first_msg:
-            data['username'], is_first_msg = rcv_msg, False
-            send(f"Hi {rcv_msg}, we can now chat.", conn)
-
-            """attain msg history from redis"""
+            is_first_msg = False
+            print(f"|{rcv_msg}|")
+            ret = msg_v1.find_one({"username": rcv_msg})
+            if ret is not None:
+                data = ret
+                send(f"Nice to see you again {rcv_msg}, we can now chat.", conn)
+            else:
+                data['username'] = rcv_msg
+                send(f"Nice to meet you {rcv_msg}, we can now chat.", conn)
+            
             history = [[[data["chat"]["msg"][i]], True] if i==0 \
                         else [[data["chat"]["msg"][i]], False] \
                         for i in range(0, len(data["chat"]["msg"]), 2)
