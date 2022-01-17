@@ -25,15 +25,6 @@ def send(msg, conn):
 def client_handler(conn, addr):
     print(f"{addr} connected.")
 
-    mongo_mutex.acquire()
-    """[DATABASE] aquire and update global nth"""
-    nth = msg_v1.find_one({"_id": "nth"})["nth"]
-    msg_v1.update_one({"_id": "nth"}, {"$inc": {"nth": 1}})
-    mongo_mutex.release()
-
-    data = dict(cfg['document_format'])
-    data['nth_chat'] = nth
-
     start, is_first_msg = time.time(), True
     send("Hi, please tell me your name, or type [DEFAULT] to be treated as default.", conn)
     while True:
@@ -52,12 +43,12 @@ def client_handler(conn, addr):
         rcv_msg = conn.recv(buflen).decode(cfg['msg_format'])
         if is_first_msg:
             is_first_msg = False
-            print(f"|{rcv_msg}|")
             ret = msg_v1.find_one({"username": rcv_msg})
             if ret is not None:
                 data = ret
                 send(f"Nice to see you again {rcv_msg}, we can now chat.", conn)
             else:
+                data = dict(cfg['document_format'])
                 data['username'] = rcv_msg
                 send(f"Nice to meet you {rcv_msg}, we can now chat.", conn)
             
@@ -97,11 +88,21 @@ def client_handler(conn, addr):
         data["chat"]["msg_time"].append(round(time.time()-start, 2))
     conn.close()
 
-    try:
+    mongo_mutex.acquire()
+    nth = msg_v1.find_one({"_id": "nth"})["nth"]
+    msg_v1.update_one({"_id": "nth"}, {"$inc": {"nth": 1}})
+    mongo_mutex.release()
+
+    if ret is None:
+        data["nth_chat"] = nth
         msg_v1.insert_one(data)
-    except Exception as exception:
-        msg_v1.delete_one({"nth_chat": nth})
-        print(f"insert failed, data deleted. {exception}")
+    else:
+        msg_v1.update_one({"username": data['username']}, {"$set" : {
+                                                                "nth_chat":  nth,
+                                                                "chat.is_client" : data["chat"]["is_client"],
+                                                                "chat.msg" : data["chat"]["msg"],
+                                                                "chat.msg_time" : data["chat"]["msg_time"]
+                                                                }})
 
 mongo_client = pymongo.MongoClient(f"mongodb+srv://{key['mongodb']['username']}:{key['mongodb']['password']}@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
 msg_v1 = mongo_client.messages.version1
