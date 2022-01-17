@@ -1,13 +1,14 @@
 import argparse, json, threading, chatter, time, pymongo, socket, numpy as np
 
 parser = argparse.ArgumentParser(description='mode setting')
+parser.add_argument('--configs_dir', default="configs", help='path to configs')
 parser.add_argument('--config_path', default="config.json", help='path to server configuration file')
 parser.add_argument('--key_path', default="key.json", help='path to key file')
 args = parser.parse_args()
 
-with open(args.config_path) as config_file:
+with open(f"{args.configs_dir}/{args.config_path}") as config_file:
     cfg = json.load(config_file)
-with open(args.key_path) as key_file:
+with open(f"{args.configs_dir}/{args.key_path}") as key_file:
     key = json.load(key_file)
 
 mongo_mutex = threading.Lock()
@@ -51,7 +52,7 @@ def client_handler(conn, addr):
         rcv_msg = conn.recv(buflen).decode(cfg['msg_format'])
         if is_first_msg:
             data['username'], is_first_msg = rcv_msg, False
-            send(f"Hi {rcv_msg}, we can now start chatting!", conn)
+            send(f"Hi {rcv_msg}, we can now chat.", conn)
 
             """attain msg history from redis"""
             history = [[[data["chat"]["msg"][i]], True] if i==0 \
@@ -62,35 +63,39 @@ def client_handler(conn, addr):
         else:
             data["chat"]["is_client"].append(bool(cfg['is_client_flag']))
             data["chat"]["msg"].append(rcv_msg)
-            data["chat"]["msg_time"].append(np.float32(time.time()-start))
+            data["chat"]["msg_time"].append(round(time.time()-start, 2))
             # print(f"[{addr}] {rcv_msg}")
 
         if len(history) > 0:
             history += [[[rcv_msg], False]]
         else:
             history = [[[rcv_msg], True]]
+        # print(history)
 
         model_mutex.acquire()
-        chatter.Messager.data = history
+        chatter.Messager.data = history # [history[-1]]
         
         ret_msg = chatter.RobertDisplayModel.main(
                                             task='message',
                                             model_file='model/model',
                                             num_examples=len(history),
                                             skip_generation=False,
-                                        )[-1] # -1 for latest return message
+                                        )[-1] # [-1] # -1 for latest return message
         model_mutex.release()
 
+        # print(ret_msg)
+        # ret_msg = ret_msg[-1]
         send(ret_msg, conn)
         data["chat"]["is_client"].append(not bool(cfg['is_client_flag']))
         data["chat"]["msg"].append(ret_msg)
-        data["chat"]["msg_time"].append(np.float32(time.time()-start))
+        data["chat"]["msg_time"].append(round(time.time()-start, 2))
     conn.close()
 
     try:
         msg_v1.insert_one(data)
-    except:
+    except Exception as exception:
         msg_v1.delete_one({"nth_chat": nth})
+        print(f"insert failed, data deleted. {exception}")
 
 mongo_client = pymongo.MongoClient(f"mongodb+srv://{key['mongodb']['username']}:{key['mongodb']['password']}@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
 msg_v1 = mongo_client.messages.version1
