@@ -1,5 +1,4 @@
 ### TODO
-* search for whether the username already exist in mongodb
 * save chat message to redis (SHA-256, messages) with item key saved in mongodb
 * train a chat model for one day for better performance
 ### MORE
