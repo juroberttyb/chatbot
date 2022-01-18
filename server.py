@@ -69,13 +69,14 @@ def client_handler(conn, addr):
         else:
             history = [[[rcv_msg], True]]
 
+        num_memory = 2
         model_mtx.acquire()
-        chatter.Messager.data = history
+        chatter.Messager.data = history[-num_memory:] # history
         
         ret_msg = chatter.RobertDisplayModel.main(
                                             task='message',
                                             model_file='model/model',
-                                            num_examples=len(history),
+                                            num_examples=num_memory, # len(history),
                                             skip_generation=False,
                                         )[-1] # -1 for latest return message
         model_mtx.release()
