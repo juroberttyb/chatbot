@@ -91,7 +91,7 @@ def train_new_model():
         # early stopping on perplexity
         validation_metric='ppl',
         # train at most 10 minutes, and validate every 0.25 epochs
-        max_train_time=1.5*60*60, validation_every_n_epochs=0.25,
+        max_train_time=4*60*60, validation_every_n_epochs=0.5,
         
         # depend on your gpu. If you have a V100, this is good
         batchsize=10, fp16=True, fp16_impl='mem_efficient',
