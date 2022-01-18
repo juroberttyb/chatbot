@@ -2,5 +2,6 @@ key.json
 data
 model
 tmp
+__pycache__
 
 # below are git ignore from parlai
