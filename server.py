@@ -49,13 +49,10 @@ def client_handler(conn, addr):
                 data["chat"]["msg"] = pickle.loads(byte_obj)
                 send(f"Nice to see you again {rcv_msg}.", conn)
             else:
-                # data = dict(cfg['document_format'])
                 data = copy.deepcopy(cfg['document_format'])
                 data['username'] = rcv_msg
                 send(f"Nice to meet you {rcv_msg}.", conn)
             
-            print(data)
-            print(dict(cfg['document_format']))
             history = [[[data["chat"]["msg"][i]], i==0] \
                          for i in range(0, len(data["chat"]["msg"]), 2)
                     ]
@@ -66,27 +63,23 @@ def client_handler(conn, addr):
             data["chat"]["is_client"].append(bool(cfg['is_client_flag']))
             data["chat"]["msg"].append(rcv_msg)
             data["chat"]["msg_time"].append(round(time.time()-start, 2))
-            # print(f"[{addr}] {rcv_msg}")
 
         if len(history) > 0:
             history += [[[rcv_msg], False]]
         else:
             history = [[[rcv_msg], True]]
-        # print(history)
 
         model_mtx.acquire()
-        chatter.Messager.data = history # [history[-1]]
+        chatter.Messager.data = history
         
         ret_msg = chatter.RobertDisplayModel.main(
                                             task='message',
                                             model_file='model/model',
                                             num_examples=len(history),
                                             skip_generation=False,
-                                        )[-1] # [-1] # -1 for latest return message
+                                        )[-1] # -1 for latest return message
         model_mtx.release()
 
-        # print(ret_msg)
-        # ret_msg = ret_msg[-1]
         send(ret_msg, conn)
         data["chat"]["is_client"].append(not bool(cfg['is_client_flag']))
         data["chat"]["msg"].append(ret_msg)
