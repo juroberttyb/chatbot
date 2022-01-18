@@ -1,4 +1,4 @@
-import argparse, json, threading, chatter, time, pymongo, socket, numpy as np
+import argparse, json, threading, chatter, time, pymongo, socket, redis, pickle, copy
 
 parser = argparse.ArgumentParser(description='mode setting')
 parser.add_argument('--configs_dir', default="configs", help='path to configs')
@@ -11,8 +11,8 @@ with open(f"{args.configs_dir}/{args.config_path}") as config_file:
 with open(f"{args.configs_dir}/{args.key_path}") as key_file:
     key = json.load(key_file)
 
-mongo_mutex = threading.Lock()
-model_mutex= threading.Lock()
+mongo_mtx = threading.Lock()
+model_mtx= threading.Lock()
 
 def send(msg, conn):
     buflen = str(len(msg))
@@ -25,8 +25,8 @@ def send(msg, conn):
 def client_handler(conn, addr):
     print(f"{addr} connected.")
 
-    start, is_first_msg = time.time(), True
-    send("Hi, please tell me your name, or type [DEFAULT] to be treated as default.", conn)
+    start = None
+    send("Welcome, please tell me your name.", conn)
     while True:
         buflen = conn.recv(cfg['header_size']).decode(cfg['msg_format'])
 
@@ -41,21 +41,26 @@ def client_handler(conn, addr):
             break
 
         rcv_msg = conn.recv(buflen).decode(cfg['msg_format'])
-        if is_first_msg:
-            is_first_msg = False
-            ret = msg_v1.find_one({"username": rcv_msg})
-            if ret is not None:
-                data = ret
-                send(f"Nice to see you again {rcv_msg}, we can now chat.", conn)
+        if start is None:
+            mongo_ret = mongo_msg.find_one({"username": rcv_msg})
+            if mongo_ret is not None:
+                data = mongo_ret
+                byte_obj = redis_msg.get(data["username"])
+                data["chat"]["msg"] = pickle.loads(byte_obj)
+                send(f"Nice to see you again {rcv_msg}.", conn)
             else:
-                data = dict(cfg['document_format'])
+                # data = dict(cfg['document_format'])
+                data = copy.deepcopy(cfg['document_format'])
                 data['username'] = rcv_msg
-                send(f"Nice to meet you {rcv_msg}, we can now chat.", conn)
+                send(f"Nice to meet you {rcv_msg}.", conn)
             
-            history = [[[data["chat"]["msg"][i]], True] if i==0 \
-                        else [[data["chat"]["msg"][i]], False] \
-                        for i in range(0, len(data["chat"]["msg"]), 2)
+            print(data)
+            print(dict(cfg['document_format']))
+            history = [[[data["chat"]["msg"][i]], i==0] \
+                         for i in range(0, len(data["chat"]["msg"]), 2)
                     ]
+
+            start = time.time()
             continue
         else:
             data["chat"]["is_client"].append(bool(cfg['is_client_flag']))
@@ -69,7 +74,7 @@ def client_handler(conn, addr):
             history = [[[rcv_msg], True]]
         # print(history)
 
-        model_mutex.acquire()
+        model_mtx.acquire()
         chatter.Messager.data = history # [history[-1]]
         
         ret_msg = chatter.RobertDisplayModel.main(
@@ -78,7 +83,7 @@ def client_handler(conn, addr):
                                             num_examples=len(history),
                                             skip_generation=False,
                                         )[-1] # [-1] # -1 for latest return message
-        model_mutex.release()
+        model_mtx.release()
 
         # print(ret_msg)
         # ret_msg = ret_msg[-1]
@@ -88,28 +93,36 @@ def client_handler(conn, addr):
         data["chat"]["msg_time"].append(round(time.time()-start, 2))
     conn.close()
 
-    mongo_mutex.acquire()
-    nth = msg_v1.find_one({"_id": "nth"})["nth"]
-    msg_v1.update_one({"_id": "nth"}, {"$inc": {"nth": 1}})
-    mongo_mutex.release()
+    mongo_mtx.acquire()
+    nth = mongo_msg.find_one({"_id": "nth"})["nth"]
+    mongo_msg.update_one({"_id": "nth"}, {"$inc": {"nth": 1}})
+    mongo_mtx.release()
 
-    if ret is None:
-        data["nth_chat"] = nth
-        msg_v1.insert_one(data)
-    else:
-        msg_v1.update_one({"username": data['username']}, {"$set" : {
-                                                                "nth_chat":  nth,
-                                                                "chat.is_client" : data["chat"]["is_client"],
-                                                                "chat.msg" : data["chat"]["msg"],
-                                                                "chat.msg_time" : data["chat"]["msg_time"]
-                                                                }})
+    if start is not None:
+        msgs = data["chat"].pop('msg', None)
+        redis_msg.set(data["username"], pickle.dumps(msgs))
+        if mongo_ret is None:
+            data["nth_chat"] = nth
+            mongo_msg.insert_one(data)
+        else:
+            mongo_msg.update_one({"username": data["username"]}, {"$set" : {
+                                                                    "nth_chat":  nth,
+                                                                    "chat.is_client" : data["chat"]["is_client"],
+                                                                    # "chat.msg" : data["chat"]["msg"],
+                                                                    "chat.msg_time" : data["chat"]["msg_time"]
+                                                                    }})
 
 mongo_client = pymongo.MongoClient(f"mongodb+srv://{key['mongodb']['username']}:{key['mongodb']['password']}@messages.bixip.mongodb.net/messages?retryWrites=true&w=majority")
-msg_v1 = mongo_client.messages.version1
+mongo_msg = mongo_client.messages.version1
+redis_msg = redis.Redis(host='redis-10145.c258.us-east-1-4.ec2.cloud.redislabs.com', port=10145, db=0, password=key['redis']['password'])
 
 if cfg['reset_db']:
-    msg_v1.delete_many({})
-    msg_v1.insert_one({"_id": "nth", "nth": 0})
+    mongo_msg.delete_many({})
+    mongo_msg.insert_one({"_id": "nth", "nth": 0})
+
+    for key in redis_msg.scan_iter("*"):
+        print(f"key {key.decode('utf-8')} deleted")
+        redis_msg.delete(key)
     print("[DATABASE] reset successfully")
 
 SERVER_IP = socket.gethostbyname(socket.gethostname())
