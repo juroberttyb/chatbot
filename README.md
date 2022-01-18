@@ -1,5 +1,4 @@
 ### TODO
-* save chat message to redis (SHA-256, messages) with item key saved in mongodb
 * train a chat model for one day for better performance
 ### MORE
 * add user property (name, talk time, predicited user type, ...) to mysql, or practice mysql in fastapi tutorial
