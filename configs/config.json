@@ -1,7 +1,7 @@
 {
     "reset_db": "True",
     "header_size": 4,
-    "server_port": 5050,
+    "server_port": 5051,
     "msg_format": "utf-8",
     "server_status": "True",
     "is_client_flag": "True",

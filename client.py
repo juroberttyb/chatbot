@@ -1,9 +1,9 @@
 import socket, threading
 
 HEADER = 64
-PORT = 5050
+PORT = 5051
 FORMAT = 'utf-8'
-SERVER = "172.17.0.2"
+SERVER = "119.14.213.118"
 ADDR = (SERVER, PORT)
 SIZE = 4
 
