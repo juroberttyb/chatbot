@@ -3,7 +3,7 @@
 * For client side, run [python3 client.py]
 * To train model, run [python3 chatter.py]
 
-### MORE
+### TODO
 * add user property (name, talk time, predicited user type, ...) to mysql, or practice mysql in fastapi tutorial
 * make this python project-like, OOP, structure...
 * cmd prompt to control server behavior with another thread
